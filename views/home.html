@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>home</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
+    <link rel="icon" href="">
+    <link rel="stylesheet" type="text/css" href="">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+
+    <script src="https://kit.fontawesome.com/6670bd51cb.js" crossorigin="anonymous"></script>
+</head>
+<style>
+
+    * {
+        font-family: 'Kulim Park', sans-serif;
+        box-sizing: border-box;
+        font-size: 16px;
+
+    }
+    body{
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+    }
+
+    .hide{
+        display: none !important;
+    }
+
+    #home {
+        display: flex;
+        flex-direction: row;
+        flex-grow: 1;
+    }
+
+    #name {
+        display: flex;
+        flex-direction: row;
+        font-size: 1.2em;
+        padding:1em;
+    }
+
+    #search-container{
+        padding-left: 1em;
+        padding-bottom: 1em;
+        position: relative;
+    }
+
+    button{
+        font-size: 0.8em;
+    }
+    i.fa-search{
+        font-size: 0.9em;
+    }
+    i.fa-window-close{
+        font-size: 0.7em;
+    }
+
+    #cancel{
+        position: absolute;
+        left: 155px;
+        color: #555;
+        cursor: pointer;
+    }
+
+    #left {
+        display: flex;
+        flex-direction: column;
+        min-width: 250px;
+        background-color: #ddd;
+    }
+
+    #right {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        background-color: #eee;
+    }
+
+    #friendContent{
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+
+    #result{
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
+    #result>span{
+        padding: 1em;
+    }
+    #requests{
+        display: flex;
+        flex-direction: column;
+    }
+    #search{
+        min-width: 165px;
+        font-size: 0.8em;
+    }
+
+    .friend{
+        padding:1em;
+    }
+
+    .friend:hover{
+        background-color: #ccc;
+    }
+
+    .request{
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+
+    }
+
+    .accept{
+        color: limegreen;
+    }
+    .reject{
+        color: lightcoral;
+    }
+
+    #friendList {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+
+
+
+
+</style>
+
+<body>
+<div id="home">
+    <div id="left">
+        <div><b><div id="name"></div></b><span id="userID" class="hide"></span></div>
+        <div id="search-container">
+            <div id="cancel" class="hide" onclick="cancelOnClickListener()"><i class="fa fa-window-close" aria-hidden="true"></i></div>
+            <form method="post" id="searchFriendForm">
+                <label for="search"></label>
+                <input type="text" placeholder="Search for a friend..." name ='search' id="search" onfocus="focusEventListener()">
+                <button type="submit"><i class="fa fa-search"></i></button>
+            </form>
+        </div>
+
+        <div id="result" class="hide">
+
+        </div>
+
+
+        <div id="friendContent">
+
+            <div id="requests">
+
+            </div>
+
+            <div id="friendList">
+
+            </div>
+        </div>
+
+
+    </div>
+
+    <div id="right">
+    </div>
+
+
+</div>
+</body>
+
+<script>
+    const domain = 'http://127.0.0.1:8000';
+    let selectedFriendID = null;
+
+
+
+    let focusEventListener = () =>{
+        document.getElementsByName('search')[0].placeholder = '';
+        document.getElementById('friendContent').classList.add('hide');
+        document.getElementById('cancel').classList.remove('hide');
+        document.getElementById('result').classList.remove('hide');
+    };
+
+    let cancelOnClickListener = () =>{
+        document.getElementById('search').value='';
+        document.getElementsByName('search')[0].placeholder = 'Search for a friend...';
+        document.getElementById('friendContent').classList.remove('hide');
+        document.getElementById('cancel').classList.add('hide');
+        document.getElementById('result').classList.add('hide');
+    };
+
+    let friendColorClickListener = (id) =>{
+        if (selectedFriendID){
+            document.getElementById(selectedFriendID).style.backgroundColor=''
+        }
+        document.getElementById(id).style.backgroundColor = '#bbb';
+        selectedFriendID = id;
+    };
+
+
+
+
+    function Message(to, from, type, body=null) {
+        return {
+            to: to,
+            from: from,
+            type: type,
+            body: body,
+        }
+    }
+
+    let getUsername = async () =>{
+        let cookies = document.cookie;
+        let token;
+        cookies = cookies.split('=');
+        for (let i = 0; i < cookies.length; i++) {
+            if (cookies[i] === 'token') {
+                token = cookies[i + 1];
+                break;
+            }
+        }
+
+        let response0 = await fetch(domain+'/cookieInfoAPI/', {
+            method: 'POST',
+
+        });
+        let result0 = await response0.json();
+        document.getElementById('name').innerText = 'Hello, '+result0.user.username;
+        document.getElementById('userID').innerText = result0.user.id+'';
+    }
+
+
+    let getFriendRequest = async ()=>{
+        let myID = parseInt(document.getElementById('userID').innerText);
+        let response = await fetch(domain+'/getRequest/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=utf-8'
+            },
+            body: JSON.stringify({myID:myID})
+        });
+        let result = await response.json();
+
+
+        if (result.error){
+            console.log(result.error);
+        }else{
+            let temp = [];
+            console.log('friend requests',result);
+            let innerHtml ='';
+            for (let i = 0; i <result.length ; i++) {
+                if (temp.includes(result[i].FromID)){
+                    continue
+                }
+                innerHtml += '<div class="request" id="request'+i+'">'+'<div>Friend request from '+result[i].name+'</div><div>'+' <i class="fa fa-check accept" id="accept'+i+'"aria-hidden="true"></i>&emsp;<i class="fa fa-times reject" id="reject'+i+'"aria-hidden="true"></i></div></div>'
+                temp.push(result[i].FromID);
+            }
+            document.getElementById('requests').innerHTML = innerHtml;
+
+            for (let i = 0; i <result.length ; i++) {
+                if (document.getElementById('accept'+i)===null){
+                    continue
+                }
+                document.getElementById('accept'+i).onclick = async () =>{
+                    document.getElementById('request'+i).style.display='none';
+                    await fetch(domain+'/acceptFriendRequest/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json;charset=utf-8'
+                        },
+                        body: JSON.stringify({myID:result[i].ToID,friendID:result[i].FromID})
+                    });
+
+
+                };
+                document.getElementById('reject'+i).onclick = async () =>{
+                    document.getElementById('request'+i).style.display='none';
+                    await fetch(domain+'/rejectFriendRequest/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json;charset=utf-8'
+                        },
+                        body: JSON.stringify({ToID:result[i].ToID,FromID:result[i].FromID})
+                    });
+
+                };
+            }
+        }
+    };
+
+    let getFriendList = async () =>{
+        let myID = parseInt(document.getElementById('userID').innerText);
+        let response = await fetch(domain+'/getFriendList/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=utf-8'
+            },
+            body: JSON.stringify({myID:myID})
+        });
+        let result = await response.json();
+        if (result){
+            let html = '';
+            for (let i = 0; i <result.length ; i++) {
+                html += '<div class="friend" id="'+ result[i].friendID+'">' + result[i].name+'</div>'
+            }
+            document.getElementById('friendList').innerHTML=html;
+            for (let i = 0; i <result.length ; i++) {
+               document.getElementById(result[i].friendID).onclick=()=>{
+                   console.log(i,'clicked');
+                   friendColorClickListener(result[i].friendID);
+                }
+            }
+
+            console.log(result);
+        }else{
+            document.getElementById('friendList').innerText='No Friends yet';
+        }
+
+
+    };
+
+
+    let initialize = async () => {
+
+        await getUsername();
+        await getFriendRequest();
+        await getFriendList();
+
+    };
+
+
+
+
+    let searchFriend = document.getElementById('searchFriendForm');
+    searchFriend.onsubmit = async (e) => {
+        e.preventDefault();
+
+        let user = {
+            username: document.getElementById('search').value,
+        };
+
+        let response = await fetch(domain+'/users/getUserID/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=utf-8'
+            },
+            body: JSON.stringify(user)
+        });
+
+        let result = await response.json();
+        let resultDisplay = document.getElementById('result');
+        let myID = parseInt(document.getElementById('userID').innerText);
+
+        if (result.userID && myID !== result.userID) {
+            resultDisplay.innerHTML = '<span>' + user.username + '</span>' + '<span style="cursor: pointer;margin-right: 3.5em" id="addButton">Add</span>';
+            let addButton = document.getElementById('addButton');
+            addButton.onclick = async () => {
+                addButton.onclick =null;
+                let request = Message(result.userID,myID,'request');
+                let response = await fetch(domain+'/sendFriendRequest/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json;charset=utf-8'
+                    },
+                    body: JSON.stringify(request)
+                });
+                let msg = await response.json();
+                if (msg.message){
+                    addButton.innerText = msg.message;
+                }else{
+                    addButton.style.color = 'red';
+                    addButton.innerText = ' Pending';
+                }
+            };
+        } else {
+            resultDisplay.innerText = 'No Such User'
+        }
+    };
+
+
+
+
+    initialize();
+
+
+</script>
+</html>
