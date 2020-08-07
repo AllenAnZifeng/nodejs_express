@@ -239,6 +239,8 @@ router.post('/getFriendList/', processToken, async (req, res) => {
     let friends = await db.getFriendList(req.body.myID);
     if (friends) {
         res.json(friends);
+    }else{
+        res.json(null);
     }
 
 
@@ -294,7 +296,9 @@ router.post('/getMessageHistory/', async (req, res) => {
     if (message){
         res.json(message);
     }
-
+    else{
+        res.json(null);
+    }
 });
 
 
