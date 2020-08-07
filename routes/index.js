@@ -26,8 +26,6 @@ function processToken(req, res, next) {
         res.redirect('/users/login/');
     }
     next();
-
-
 }
 
 

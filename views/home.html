@@ -447,7 +447,8 @@
         let response = await fetch(domain + '/sendMessage/', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json;charset=utf-8'
+                'Content-Type': 'application/json;charset=utf-8',
+                'Access-Control-Allow-Origin': '*'
             },
             body: JSON.stringify(request)
         });
@@ -496,7 +497,8 @@
         let response = await fetch(domain + '/getFriendRequest/', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json;charset=utf-8'
+                'Content-Type': 'application/json;charset=utf-8',
+                'Access-Control-Allow-Origin': '*'
             },
             body: JSON.stringify({myID: user.id})
         });
@@ -535,7 +537,8 @@
                     fetch(domain + '/acceptFriendRequest/', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json;charset=utf-8'
+                            'Content-Type': 'application/json;charset=utf-8',
+                            'Access-Control-Allow-Origin': '*'
                         },
                         body: JSON.stringify({myID: result[i].ToID, friendID: result[i].FromID})
                     });
@@ -548,7 +551,8 @@
                     fetch(domain + '/rejectFriendRequest/', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json;charset=utf-8'
+                            'Content-Type': 'application/json;charset=utf-8',
+                            'Access-Control-Allow-Origin': '*'
                         },
                         body: JSON.stringify({ToID: result[i].ToID, FromID: result[i].FromID})
                     });
@@ -564,7 +568,8 @@
         let response = await fetch(domain + '/getFriendList/', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json;charset=utf-8'
+                'Content-Type': 'application/json;charset=utf-8',
+                'Access-Control-Allow-Origin': '*'
             },
             body: JSON.stringify({myID: user.id})
         });
@@ -605,7 +610,8 @@
         let response = await fetch(domain + '/getMessageHistory/', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json;charset=utf-8'
+                'Content-Type': 'application/json;charset=utf-8',
+                'Access-Control-Allow-Origin': '*'
             },
             body: JSON.stringify({myID: user.id})
         });
@@ -652,7 +658,8 @@
         let response = await fetch(domain + '/users/getUserID/', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json;charset=utf-8'
+                'Content-Type': 'application/json;charset=utf-8',
+                'Access-Control-Allow-Origin': '*'
             },
             body: JSON.stringify(friend)
         });
@@ -670,7 +677,8 @@
                 let response = await fetch(domain + '/sendFriendRequest/', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json;charset=utf-8'
+                        'Content-Type': 'application/json;charset=utf-8',
+                        'Access-Control-Allow-Origin': '*'
                     },
                     body: JSON.stringify(request)
                 });
