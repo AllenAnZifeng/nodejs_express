@@ -50,13 +50,31 @@ function MessageDB() {
             db.run('CREATE TABLE IF NOT EXISTS friends(myID INTEGER NOT NULL,friendID INTEGER NOT NULL)', resolve)
         });
 
-        await new Promise((resolve => {
-            db.run('INSERT INTO friends (myID, friendID) VALUES (?,?)', [myID, friendID], resolve);
-        }));
+        await new Promise(((resolve, reject) => {
+            db.all('SELECT * FROM friends Where myID = ? AND friendID=?', [myID, friendID], (err, row) => {
+                if (row && row.length > 0) {
+                    reject(new Error('already friends'));
+                } else {
+                    resolve();
+                }
+            });
+        })).then(
+            async () =>{
+                await new Promise((resolve => {
+                    db.run('INSERT INTO friends (myID, friendID) VALUES (?,?)', [myID, friendID], resolve);
+                }));
 
-        await new Promise((resolve => {
-            db.run('INSERT INTO friends (myID, friendID) VALUES (?,?)', [friendID, myID], resolve);
-        }));
+                await new Promise((resolve => {
+                    db.run('INSERT INTO friends (myID, friendID) VALUES (?,?)', [friendID, myID], resolve);
+                }));
+
+            }
+        ).catch(
+            (error) => {
+                console.error(error);
+            }
+        )
+
 
 
     };
@@ -67,16 +85,16 @@ function MessageDB() {
         }));
     };
 
-    this.uploadMessage = async (msg) => {
+    this.sendFriendRequest = async (msg) => {
 
         let alreadyFriendFlag = false;
         await new Promise((resolve => {
-            db.run('CREATE TABLE IF NOT EXISTS messageCenter(ToID INTEGER NOT NULL,FromID INTEGER NOT NULL, Type Text NOT NULL,Body TEXT)', resolve);
+            db.run('CREATE TABLE IF NOT EXISTS messageCenter(ToID INTEGER NOT NULL,FromID INTEGER NOT NULL, Type Text NOT NULL,Body TEXT, Time TEXT)', resolve);
         }));
 
         await new Promise(((resolve, reject) => {
             db.all('SELECT * FROM friends Where myID = ? AND friendID=?', [msg.to, msg.from], (err, row) => {
-                if (row.length > 0) {
+                if (row && row.length > 0) {
 
                     reject(new Error('already friends'));
                 } else {
@@ -86,7 +104,7 @@ function MessageDB() {
         })).then(
             async () => {
                 await new Promise((resolve => {
-                    db.run('INSERT INTO messageCenter (ToID, FromID,Type,Body) VALUES (?,?,?,?)', [msg.to, msg.from, msg.type, msg.body], resolve);
+                    db.run('INSERT INTO messageCenter (ToID, FromID,Type,Body,Time) VALUES (?,?,?,?,?)', [msg.to, msg.from, msg.type, msg.body, new Date()], resolve);
                 }));
             }
         ).catch(
@@ -100,12 +118,25 @@ function MessageDB() {
 
     };
 
-    this.downloadMessage = async (myID) => {
+    this.sendMessage = async (msg) =>{
+        await new Promise((resolve => {
+            return db.run('INSERT INTO messageCenter (ToID, FromID,Type,Body,Time) VALUES (?,?,?,?,?)', [msg.to, msg.from, msg.type, msg.body,new Date()], (err,row)=>{
+                if (err){
+                    console.log(err);
+                    resolve(false);
+                }
+                else{
+                    resolve(true);
+                }
+            });
+        }));
+    };
 
+    this.getFriendRequest = async (myID) => {
 
         return await new Promise(((resolve, reject) => {
-            db.all('SELECT * FROM messageCenter Where ToID = ?', [myID], (err, row) => {
-                if (row) {
+            db.all('SELECT * FROM messageCenter Where ToID = ? AND Type = ?', [myID,'request'], (err, row) => {
+                if (row && row.length>0) {
                     resolve(row);
                 } else {
                     reject('no requests');
@@ -115,7 +146,26 @@ function MessageDB() {
         })).catch(
             error => console.error(error)
         );
-    }
+    };
+
+    this.getMessageHistory = async (myID) =>{
+        return await new Promise(((resolve, reject) => {
+            db.all('SELECT * FROM messageCenter Where ToID = ? OR FromID = ? AND Type = ?', [myID,myID,'message'], (err, row) => {
+                if (row && row.length>0) {
+                    resolve(row);
+                } else {
+                    reject('no message');
+                }
+
+            });
+        })).catch(
+            error => console.error(error)
+        );
+
+
+    };
+
+
 
     this.getUsername = async (id) => {
 
@@ -129,7 +179,6 @@ function MessageDB() {
                 } else {
                     reject(new Error('error getting username'));
                 }
-
             });
         })).catch(
             error => console.error(error)
@@ -143,10 +192,10 @@ function MessageDB() {
 
         return await new Promise(((resolve, reject) => {
             db.all(sql, [myID], (err, row) => {
-                if (row.length > 0) {
-                    resolve(row);
-                } else {
+                if (err){
                     reject(new Error('no friends'));
+                }else{
+                    resolve(row);
                 }
             });
         })).then(
@@ -155,7 +204,7 @@ function MessageDB() {
                 for (let i = 0; i < friends.length; i++) {
                     friends[i].name = await this.getUsername(friends[i].friendID);
                 }
-                console.log(friends);
+                // console.log('friends',friends);
                 return friends
             }
         ).catch(
@@ -201,7 +250,7 @@ router.post('/getFriendList/', processToken, async (req, res) => {
 router.post('/sendFriendRequest/', processToken, async (req, res) => {
     let msg = req.body;
     let db = new MessageDB();
-    let flag = await db.uploadMessage(msg);
+    let flag = await db.sendFriendRequest(msg);
     if (flag) {
         res.json({message: 'Already Friends'})
     } else {
@@ -210,11 +259,23 @@ router.post('/sendFriendRequest/', processToken, async (req, res) => {
 });
 
 
-router.post('/getRequest/', async (req, res) => {
+router.post('/sendMessage/', processToken, async (req, res) => {
+    let msg = req.body;
+    let db = new MessageDB();
+    let flag = await db.sendMessage(msg);
+    if (flag) {
+        res.json({message: 'gg'})
+    } else {
+        res.json({message: 'success'})
+    }
+});
+
+
+router.post('/getFriendRequest/', async (req, res) => {
 
     let db = new MessageDB();
     let myID = req.body.myID;
-    let message = await db.downloadMessage(myID);
+    let message = await db.getFriendRequest(myID);
 
     if (message) {
         for (let i = 0; i < message.length; i++) {
@@ -223,6 +284,17 @@ router.post('/getRequest/', async (req, res) => {
         res.json(message);
     } else {
         res.json({error: 'No incoming friend requests'});
+    }
+});
+
+router.post('/getMessageHistory/', async (req, res) => {
+
+    let db = new MessageDB();
+    let myID = req.body.myID;
+    let message = await db.getMessageHistory(myID);
+
+    if (message){
+        res.json(message);
     }
 
 });
