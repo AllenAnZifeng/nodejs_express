@@ -1,124 +1,119 @@
 let express = require('express');
 let router = express.Router();
 let path = require('path');
-let sqlite3 = require('sqlite3').verbose();
-let jwt = require('jsonwebtoken');
 
+let jwt = require('jsonwebtoken');
+let db = require('../db');
 let ROOT = path.dirname(__dirname);
 
-function DataBase() {
 
-    let makeError = (msg) => {
-        return (err) => {
-            if (err) {
-                console.error(err.message);
-            } else {
-                console.log(msg);
-            }
-        }
-    };
+let resolveMessage = (error=false,message='') =>{
+    return {
+        'error':error,
+        'message':message
+    }
+}
 
-
-    this.connectError = makeError('Connected to the database.');
-
-    this.closeConnectionError = makeError('Close the database connection.');
-
+let message = (error=false,error_message='no error',
+               redirect=false,message='') => {
+    return {
+        'error': error,
+        'error_message': error_message,
+        'redirect': redirect,
+        'message': message,
+    }
 }
 
 
+
 function UserDataBase() {
-    DataBase.call(this);
 
     this.insertUser = async (username, password) => {
-        this.db = new sqlite3.Database('./users.db', this.connectError);
 
         await new Promise((resolve => {
-            this.db.run('CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE, password TEXT NOT NULL)', resolve);
+            db.run('CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE, password TEXT NOT NULL)', resolve);
         }));
 
-        let error = await new Promise((resolve => {
-            this.db.run('INSERT INTO users (name, password) VALUES (?,?)', [username, password], resolve);
-        }));
-
-        this.close();
-
-        return error;
-
-
+        return await new Promise(((resolve,reject) => {
+            db.run('INSERT INTO users (name, password) VALUES (?,?)', [username, password], (err,row)=>{
+                if (err){
+                    reject(new Error(err));
+                }else{
+                    resolve(resolveMessage(false,'insert user success'));
+                }
+            });
+        })).catch(
+            error => {
+                console.error(error);
+                return {'error':error};
+            }
+        );
     };
 
 
     this.authenticateUser = async (username, password) => {
-        this.db = new sqlite3.Database('./users.db', this.connectError);
+
         let sql = 'SELECT ID id, name username,Password password FROM users Where name = ?';
 
-        let promise = await new Promise(((resolve, reject) => {
-            this.db.get(sql, [username], (err, row) => {
+        return await new Promise(((resolve, reject) => {
+            db.get(sql, [username], (err, row) => {
 
                 if (row && row.password === password && row.username === username) {
-                    resolve(row.id);
-
+                    resolve(resolveMessage(false,row.id));
                 } else {
-                    reject('wrong username or password');
+                    reject(new Error('wrong username or password'));
                 }
 
 
             });
         })).catch(
-            error => console.error(error)
+            error => {
+                console.log(error);
+                return {'error':error};
+            }
         );
-
-        this.close();
-        return promise;
 
     };
 
 
     this.getUserID = async (username) => {
-        this.db = new sqlite3.Database('./users.db', this.connectError);
+
         let sql = 'SELECT ID id, name username FROM users Where name = ?';
 
-        let promise = await new Promise(((resolve, reject) => {
-            this.db.get(sql, [username], (err, row) => {
+        return await new Promise(((resolve, reject) => {
+            db.get(sql, [username], (err, row) => {
 
                 if (row) {
-                    resolve(row.id);
-                } else {
-                    reject('no such user');
+                    resolve(resolveMessage(false,row.id));
+                }
+                else {
+                    reject(new Error('no such user'));
                 }
 
             });
         })).catch(
-            error => console.error(error)
+            error => {
+                console.error(error);
+                return {'error':error};
+            }
         );
 
-        this.close();
-
-
-        return promise;
-
-    };
-
-    this.close = () => {
-        this.db.close(this.closeConnectionError);
     };
 
 }
 
 
-router.post('/getUserID/', async (req, res, next) => {
+router.get('/userID/', async (req, res, next) => {
     let db = new UserDataBase();
     let username = req.body.username;
-    console.log(username);
-    let value = await db.getUserID(username);
 
-    if (value) {
-        res.json({userID: value});
+    let msg = await db.getUserID(username);
+
+    if (msg.error) {
+        res.json(message(true,'error getting userID'));
     } else {
-        res.json({userID: null});
+        res.json(message(false,'',false,msg.message));
     }
-
-
 });
 
 
@@ -133,40 +128,41 @@ router.get('/register/', function (req, res, next) {
 });
 
 
-router.post('/loginAPI', async function (req, res, next) {
+router.post('/login/', async function (req, res, next) {
 
-    console.log(req.body);
     let db = new UserDataBase();
-    let userID = await db.authenticateUser(req.body.username, req.body.password);
+    let msg = await db.authenticateUser(req.body.username, req.body.password);
 
-    if (userID) {
-        let user = {username: req.body.username,id:userID};
-        jwt.sign({user}, 'secretKey', {expiresIn: '1d'}, (err, token) => {
-            res.json({token: token})
-        })
+    if (msg.error) {
+        res.status(403).json(message(true,'Authentication Error'));
     } else {
-        res.sendStatus(403);
+        let userID = msg.message;
+        jwt.sign({'userID':userID,'username':req.body.username}, 'secretKey', {expiresIn: '1d'}, (err, token) => {
+            if (err){
+                res.json(message(true,'jwt signing error'));
+            }else{
+                res.json(message(false,'',true,{token: token}));
+            }
+        })
     }
 
 });
 
 
-router.post('/registerAPI/', async function (req, res, next) {
+router.post('/register/', async function (req, res, next) {
 
-    console.log(req.body);
     if (req.body.password === req.body.pwd_repeat) {
         let db = new UserDataBase();
-        let err = await db.insertUser(req.body.username, req.body.password);
+        let msg = await db.insertUser(req.body.username, req.body.password);
 
-        if (err) {
-            console.error(err);
-            res.status(403).json({error: 'registered username'});
+        if (msg.error) {
+            res.json(message(true,'registered username Error'));
         } else {
-            console.log('redirecting');
-            res.status(200).json({redirect: true});
+            res.json(message(false,'',true, 'success'));
         }
+
     } else {
-        res.status(403).json({error: 'password not the same'})
+        res.status(403).json(message(true,'password not the same'));
     }
 });
 
