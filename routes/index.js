@@ -7,8 +7,8 @@ let db = require('../db');
 let ROOT = path.dirname(__dirname);
 
 
-let message = (error=false,error_message='no error',
-               redirect=false,message='') => {
+let message = (error = false, error_message = 'no error',
+               redirect = false, message = '') => {
     return {
         'error': error,
         'error_message': error_message,
@@ -17,10 +17,10 @@ let message = (error=false,error_message='no error',
     }
 }
 
-let resolveMessage = (error=false,message='') =>{
+let resolveMessage = (error = false, message = '') => {
     return {
-        'error':error,
-        'message':message
+        'error': error,
+        'message': message
     }
 }
 
@@ -31,13 +31,15 @@ function processToken(req, res, next) {
     if (token) {
         jwt.verify(token, 'secretKey', function (err, authData) {
             if (err) {
-                res.send(message(true,err,true,''));
+                // res.send(message(true,err,true,''));
+                res.sendFile('views/login.html', {root: ROOT});
             } else {
                 req.authData = authData;
             }
         });
     } else {
-        res.send(message(true,'no token',true,''));
+        // res.send(message(true,'no token',true,''));
+        res.sendFile('views/login.html', {root: ROOT});
     }
     next();
 }
@@ -46,7 +48,7 @@ function processToken(req, res, next) {
 function MessageDB() {
 
 
-     this.createFriendRequest = async (myID, friendID) => {
+    this.createFriendRequest = async (myID, friendID) => {
 
 
         await new Promise(resolve => {
@@ -67,11 +69,11 @@ function MessageDB() {
                     db.run('INSERT INTO friends (myID, friendID) VALUES (?,?)', [myID, friendID], resolve);
                 }));
 
-                await new Promise(((resolve,reject) => {
-                    db.run('INSERT INTO friends (myID, friendID) VALUES (?,?)', [friendID, myID], (err,row)=>{
-                        if (err){
+                return await new Promise(((resolve, reject) => {
+                    db.run('INSERT INTO friends (myID, friendID) VALUES (?,?)', [friendID, myID], (err, row) => {
+                        if (err) {
                             reject(new Error('error inserting into friends'));
-                        }else{
+                        } else {
                             resolve(resolveMessage(false));
                         }
                     });
@@ -81,7 +83,7 @@ function MessageDB() {
         ).catch(
             error => {
                 console.error(error);
-                return {'error':error};
+                return {'error': error};
             }
         )
 
@@ -89,19 +91,18 @@ function MessageDB() {
     };
 
     this.deleteMessage = async (ToID, FromID) => {
-        return await new Promise(((resolve,reject) => {
-            db.run('DELETE FROM messageCenter WHERE ToID=? AND FromID=? AND Type=?', [ToID, FromID, 'request'], (err,row)=>{
-                if (err){
+        return await new Promise(((resolve, reject) => {
+            db.run('DELETE FROM messageCenter WHERE ToID=? AND FromID=? AND Type=?', [ToID, FromID, 'request'], (err, row) => {
+                if (err) {
                     reject(new Error('Delete Error!'));
-                }
-                else{
+                } else {
                     resolveMessage(resolveMessage(false))
                 }
             });
         })).catch(
             error => {
                 console.error(error);
-                return {'error':error};
+                return {'error': error};
             }
         );
     };
@@ -124,12 +125,11 @@ function MessageDB() {
             });
         })).then(
             async () => {
-                await new Promise(((resolve,reject) => {
-                    db.run('INSERT INTO messageCenter (ToID, FromID,Type,Body,Time) VALUES (?,?,?,?,?)', [msg.to, msg.from, msg.type, msg.body, new Date()], (err,row)=>{
-                        if (err){
+                return await new Promise(((resolve, reject) => {
+                    db.run('INSERT INTO messageCenter (ToID, FromID,Type,Body,Time) VALUES (?,?,?,?,?)', [msg.to, msg.from, msg.type, msg.body, new Date()], (err, row) => {
+                        if (err) {
                             reject(new Error('insert friend error'));
-                        }
-                        else{
+                        } else {
                             resolve(resolveMessage(false))
                         }
                     });
@@ -138,13 +138,13 @@ function MessageDB() {
         ).catch(
             error => {
                 console.error(error);
-                return {'error':error};
+                return {'error': error};
             }
         );
     };
 
     this.sendMessage = async (msg) => {
-        return await new Promise(((resolve,reject) => {
+        return await new Promise(((resolve, reject) => {
             db.run('INSERT INTO messageCenter (ToID, FromID,Type,Body,Time) VALUES (?,?,?,?,?)', [msg.to, msg.from, msg.type, msg.body, new Date()], (err, row) => {
                 if (err) {
                     reject(new Error('insert message error'));
@@ -155,7 +155,7 @@ function MessageDB() {
         })).catch(
             error => {
                 console.error(error);
-                return {'error':error};
+                return {'error': error};
             }
         );
     };
@@ -165,7 +165,7 @@ function MessageDB() {
         return await new Promise(((resolve, reject) => {
             db.all('SELECT * FROM messageCenter Where ToID = ? AND Type = ?', [myID, 'request'], (err, row) => {
                 if (row && row.length > 0) {
-                    resolve(resolveMessage(false,row));
+                    resolve(resolveMessage(false, row));
                 } else {
                     reject(new Error('no requests'));
                 }
@@ -173,7 +173,7 @@ function MessageDB() {
         })).catch(
             error => {
                 console.error(error);
-                return {'error':error};
+                return {'error': error};
             }
         );
     };
@@ -182,7 +182,7 @@ function MessageDB() {
         return await new Promise(((resolve, reject) => {
             db.all('SELECT * FROM messageCenter Where ToID = ? OR FromID = ? AND Type = ?', [myID, myID, 'message'], (err, row) => {
                 if (row && row.length > 0) {
-                    resolve(resolveMessage(false,row));
+                    resolve(resolveMessage(false, row));
                 } else {
                     reject(new Error('no message'))
                 }
@@ -191,7 +191,7 @@ function MessageDB() {
         })).catch(
             error => {
                 console.error(error);
-                return {'error':error};
+                return {'error': error};
             }
         );
 
@@ -203,7 +203,7 @@ function MessageDB() {
         return await new Promise(((resolve, reject) => {
             db.get('SELECT name username FROM users Where id = ?', [id], (err, row) => {
                 if (row) {
-                    resolve(resolveMessage(false,row.username));
+                    resolve(resolveMessage(false, row.username));
                 } else {
                     reject(new Error('error getting username'));
                 }
@@ -211,7 +211,7 @@ function MessageDB() {
         })).catch(
             error => {
                 console.error(error);
-                return {'error':error};
+                return {'error': error};
             }
         );
     };
@@ -229,14 +229,20 @@ function MessageDB() {
         })).then(
             async (friends) => {
                 for (let i = 0; i < friends.length; i++) {
-                    friends[i].name = await this.getUsername(friends[i].friendID);
+                    let response = await this.getUsername(friends[i].friendID);
+                    if (response.error) {
+                        new Error('error getting friend username');
+                    } else {
+                        friends[i].name = response.message;
+                    }
+
                 }
-                return resolveMessage(false,friends);
+                return resolveMessage(false, friends);
             }
         ).catch(
             error => {
                 console.error(error);
-                return {'error':error};
+                return {'error': error};
             }
         );
     };
@@ -248,29 +254,35 @@ router.get('/home/', processToken, function (req, res, next) {
 });
 
 
-router.get('/friend/', processToken, async (req, res) => {
+router.get('/friend/:usrID/', processToken, async (req, res) => {
 
     let db = new MessageDB();
-    let msg = await db.getFriendList(req.body.myID);
-    if (msg.error){
-        res.send(message(true,'get friend error'))
-    }else{
-        res.send(message(false,'no error',false,msg.message));
+    let msg = await db.getFriendList(req.params.usrID);
+    if (msg.error) {
+        res.send(message(true, 'get friend error'))
+    } else {
+        res.send(message(false, 'no error', false, msg.message));
     }
 });
 
 
-router.get('/friendRequest/', processToken, async (req, res) => {
+router.get('/friendRequest/:usrID/', processToken, async (req, res) => {
 
     let db = new MessageDB();
-    let msg = await db.getFriendRequest( req.body.myID);
-    if (msg.error){
-        res.send(message(true,'No incoming friend requests'))
-    }else{
+    let msg = await db.getFriendRequest(req.params.usrID);
+    if (msg.error) {
+        res.send(message(true, 'No incoming friend requests'))
+    } else {
         for (let i = 0; i < msg.message.length; i++) {
-            msg.message[i].name = await db.getUsername(msg.message[i].FromID);
+            // msg.message[i].name = await db.getUsername(msg.message[i].FromID);
+            let response = await db.getUsername(msg.message[i].FromID);
+            if (response.error) {
+                new Error('error getting friend username');
+            } else {
+                msg.message[i].name = response.message;
+            }
         }
-        res.send(message(false,'no error',false,msg.message));
+        res.send(message(false, 'no error', false, msg.message));
     }
 });
 
@@ -278,9 +290,9 @@ router.post('/friendRequest/', processToken, async (req, res) => {
 
     let db = new MessageDB();
     let msg = await db.sendFriendRequest(req.body);
-    if (msg.error){
-        res.send(message(true,'Already Friends'))
-    }else{
+    if (msg.error) {
+        res.send(message(true, 'Already Friends'))
+    } else {
         res.send(message(false));
     }
 });
@@ -288,10 +300,10 @@ router.post('/friendRequest/', processToken, async (req, res) => {
 router.delete('/friendRequest/', processToken, async (req, res) => {
 
     let db = new MessageDB();
-    let msg = await db.deleteMessage(req.body.ToID, req.body.FromID);
-    if (msg.error){
-        res.send(message(true,'delete friend request error'))
-    }else{
+    let msg = await db.deleteMessage(req.body.myID, req.body.friendID);
+    if (msg.error) {
+        res.send(message(true, 'delete friend request error'))
+    } else {
         res.send(message(false));
     }
 
@@ -301,13 +313,13 @@ router.post('/friendRequest/accept/', processToken, async (req, res) => {
 
     let db = new MessageDB();
     let msg = await db.createFriendRequest(req.body.myID, req.body.friendID);
-    if (msg.error){
-        res.send(message(true,'create friend request error'))
-    }else{
+    if (msg.error) {
+        res.send(message(true, 'create friend request error'))
+    } else {
         msg = await db.deleteMessage(req.body.myID, req.body.friendID);
-        if (msg.error){
-            res.send(message(true,'delete friend request error'))
-        }else{
+        if (msg.error) {
+            res.send(message(true, 'delete friend request error'))
+        } else {
             res.send(message(false));
         }
     }
@@ -318,30 +330,29 @@ router.post('/message/', processToken, async (req, res) => {
 
     let db = new MessageDB();
     let msg = await db.sendMessage(req.body);
-    if (msg.error){
-        res.send(message(true,'error sending messages'))
-    }else{
+    if (msg.error) {
+        res.send(message(true, 'error sending messages'))
+    } else {
         res.send(message(false));
     }
 });
 
 
-router.get('/message/', processToken, async (req, res) => {
+router.get('/message/:usrID/', processToken, async (req, res) => {
 
     let db = new MessageDB();
-    let myID = req.body.myID;
-    let msg = await db.getMessageHistory(myID);
-    if (msg.error){
-        res.send(message(true,'error getting message history'))
-    }else{
-        res.send(message(false,'no error',false,msg.message));
+    let msg = await db.getMessageHistory(req.params.usrID);
+    if (msg.error) {
+        res.send(message(true, 'error getting message history'))
+    } else {
+        res.send(message(false, 'no error', false, msg.message));
     }
 
 });
 
 
 router.get('/cookieInfo/', processToken, function (req, res, next) {
-    res.send(message(false,'no error',false,req.authData));
+    res.send(message(false, 'no error', false, req.authData));
 });
 
 

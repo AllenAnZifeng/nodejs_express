@@ -22,17 +22,17 @@
             <div id="name"></div>
         </b><span id="userID" class="hide"></span></div>
         <div id="search-container">
-            <div id="cancel" class="hide" onclick="cancelOnClickListener()"><i class="fa fa-window-close"
-                                                                               aria-hidden="true"></i></div>
+            <div id="cancel" class="hide" onclick="user.cancelOnClickListener()"><i class="fa fa-window-close"
+                                                                                    aria-hidden="true"></i></div>
             <form method="post" id="searchFriendForm">
                 <label for="search"></label>
                 <input type="text" placeholder="Search for a friend..." name='search' id="search"
-                       onfocus="focusEventListener()">
+                       onfocus="user.focusEventListener()">
                 <button type="submit"><i class="fa fa-search"></i></button>
             </form>
         </div>
 
-        <div id="result" class="hide">
+        <div id="result" class="noDisplay">
 
         </div>
 
@@ -46,8 +46,8 @@
         </div>
 
         <div id="panel">
-            <div id="logout" onclick="logout()"><i class="fas fa-sign-out-alt"></i></div>
-            <div id="requestNotitification" onclick="displayFriendRequest()"><i class="far fa-comment"></i></div>
+            <div id="logout" onclick="user.logout()"><i class="fas fa-sign-out-alt"></i></div>
+            <div id="requestNotitification" onclick="user.displayFriendRequest()"><i class="far fa-comment"></i></div>
             <div id="requestContainer" class="noDisplay">
                 <div id="requests"></div>
             </div>
@@ -65,7 +65,7 @@
                 <div id="drag"></div>
                 <label for="messageArea"></label>
                 <textarea id="messageArea" name="messageArea" required></textarea>
-                <div id="sendButton" onclick="sendListener()">Send</div>
+                <div id="sendButton" onclick="user.sendListener()">Send</div>
             </div>
 
         </div>
@@ -76,18 +76,18 @@
 </body>
 
 <script>
-    const domain = 'http://127.0.0.1:8000';
+    const DOMAIN = 'http://127.0.0.1:8000';
 
     function User() {
         this.id = null;
-        this.usernmae = null;
+        this.username = null;
         this.friends = [];
         this.message = [];
         this.selectedFriendID = null
 
         this.logout = () => {
             document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-            window.location = domain + '/users/login/';
+            window.location = DOMAIN + '/users/login/';
         };
 
         this.enableDragTextarea = () => {
@@ -95,7 +95,7 @@
             let msgDiv = document.getElementById('sendMessage');
 
             let dragFunc = (event) => {
-                console.log(event.y, dragDiv.style.top);
+                // console.log(event.y, dragDiv.style.top);
                 msgDiv.style.height = window.innerHeight - event.y + 'px';
             }
             let addMoveListener = () => {
@@ -118,7 +118,7 @@
             document.getElementsByName('search')[0].placeholder = '';
             document.getElementById('friendContent').classList.add('hide');
             document.getElementById('cancel').classList.remove('hide');
-            document.getElementById('result').classList.remove('hide');
+            document.getElementById('result').classList.remove('noDisplay');
 
         };
 
@@ -127,24 +127,10 @@
             document.getElementsByName('search')[0].placeholder = 'Search for a friend...';
             document.getElementById('friendContent').classList.remove('hide');
             document.getElementById('cancel').classList.add('hide');
-            document.getElementById('result').classList.add('hide');
+            document.getElementById('result').classList.add('noDisplay');
         };
 
-
-        this.friendClickListener = (id) => {
-
-            if (id !== this.selectedFriendID) {
-
-                document.getElementById(this.selectedFriendID).style.backgroundColor = '';
-            }
-
-            document.getElementById(id).style.backgroundColor = '#bbb';
-            this.selectedFriendID = id;
-            document.getElementById('friendName').innerText = document.getElementById(id).innerText;
-            let textarea = document.getElementById('messageArea');
-            textarea.focus();
-            document.getElementById('messageContent').classList.remove('hide');
-
+        this.updateChat = ()=>{
 
             let parent = document.getElementById('history');
             parent.innerHTML = '';
@@ -162,358 +148,312 @@
                     parent.appendChild(div);
                 }
             }
-            // parent.scrollTo(0,parent.scrollHeight);
+
+
+        };
+
+        this.updateView = ()=>{
+          if (this.selectedFriendID){
+              this.updateChat();
+          }
+        };
+
+
+        this.friendClickListener = (id) => { // update history
+            // console.log(id,this.selectedFriendID);
+            if (this.selectedFriendID && id !== this.selectedFriendID) {
+
+                document.getElementById(this.selectedFriendID).style.backgroundColor = '';
+            }
+
+            document.getElementById(id).style.backgroundColor = '#bbb';
+            this.selectedFriendID = id;
+            document.getElementById('friendName').innerText = document.getElementById(id).innerText;
+            let textarea = document.getElementById('messageArea');
+            textarea.focus();
+            document.getElementById('messageContent').classList.remove('hide');
+
+            this.updateChat();
+            this.chatScrollDown();
+
+        };
+
+        this.chatScrollDown = () =>{
+            let parent = document.getElementById('history');
+            parent.scrollTo(0, parent.scrollHeight);
+        }
+
+        // this.responseMessage = (error, error_message,
+        //                         redirect, message) => {
+        //     return {
+        //         'error': error,
+        //         'error_message': error_message,
+        //         'redirect': redirect,
+        //         'message': message,
+        //     }
+        // }
+
+
+        this.fetch = async (url, method, body = {}) => {
+
+            return await new Promise(async (resolve, reject) => {
+                setTimeout(() => {
+                    reject(new Error('Timeout Error Fetch failed'));
+                }, 3000);
+
+                let response;
+                if (method === 'GET') {
+                    response = await fetch(DOMAIN + url, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json;charset=utf-8'
+                        },
+                    });
+                } else {
+                    response = await fetch(DOMAIN + url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json;charset=utf-8'
+                        },
+                        body: JSON.stringify(body)
+                    });
+                }
+                let result = await response.json();
+                resolve(result);
+
+            }).catch(
+                error => {
+                    console.error(error);
+                    return {'error': true, 'error_message': error, 'redirect': false, 'message': ''};
+                }
+            )
+
 
         };
 
 
+        function Message(to, from, type, body = null) {
+
+            this.json = {
+                to: to,
+                from: from,
+                type: type,
+                body: body,
+            }
+
+        }
+
+
+        this.sendListener = async () => {
+            let contentBody = document.getElementById('messageArea').value;
+            let message = new Message(this.selectedFriendID, this.id, 'message', contentBody);
+            let response = await this.fetch('/message/', 'POST', message.json);
+
+            if (response.error) {
+                document.getElementById('messageArea').placeholder = 'Send Failed';
+            } else {
+                document.getElementById('messageArea').value = '';
+            }
+        };
+
+
+        this.getUsername = async () => {
+            let cookies = document.cookie.split('=');
+            let token;
+            for (let i = 0; i < cookies.length; i++) {
+                if (cookies[i] === 'token') {
+                    token = cookies[i + 1];
+                    break;
+                }
+            }
+
+            let response = await this.fetch('/cookieInfo/', 'GET');
+
+            if (response.error) {
+                console.log(response);
+                alert('Parse Cookie Error!')
+            } else {
+                this.username = response.message.username;
+                this.id = response.message.userID;
+                document.getElementById('name').innerText = 'Hello, ' + this.username;
+                document.getElementById('userID').innerText = this.id + '';
+            }
+        }
+
+
+        this.getFriendRequest = async () => {
+
+            let icon = document.getElementById('requestNotitification');
+
+            let response = await this.fetch('/friendRequest/' + this.id + '/', 'GET');
+
+            if (response.error) {
+                icon.style.color = '';
+                document.getElementById('requests').innerText = 'No friend requests yet.'
+            } else {
+
+                icon.style.color = '#ff5e00';
+                icon.classList.toggle('animate__tada');
+                icon.classList.toggle('animate__animated');
+                // console.log(response);
+
+
+                let temp = [];
+                let innerHtml = '';
+                for (let i = 0; i < response.message.length; i++) {
+                    if (temp.includes(response.message[i].FromID)) {
+                        continue
+                    }
+                    innerHtml += '<div class="request" id="request' + i + '">' + '<div>Friend request from ' + response.message[i].name + '</div><div>' + ' <i class="fa fa-check accept" id="accept' + i + '" aria-hidden="true"></i>&emsp;<i class="fa fa-times reject" id="reject' + i + '" aria-hidden="true"></i></div></div>'
+                    temp.push(response.message[i].FromID);
+                }
+                document.getElementById('requests').innerHTML = innerHtml;
+
+                for (let i = 0; i < response.message.length; i++) {
+                    if (document.getElementById('accept' + i) === null) {
+                        continue
+                    }
+                    document.getElementById('accept' + i).onclick = async () => {
+                        document.getElementById('request' + i).style.display = 'none';
+                        let res = await this.fetch('/friendRequest/accept/', 'POST', {
+                            myID: response.message[i].ToID,
+                            friendID: response.message[i].FromID
+                        });
+                        if (res.error) {
+                            console.log(res.error_message);
+                        }
+                        // this.displayFriendRequest();
+
+
+                    };
+                    document.getElementById('reject' + i).onclick = async () => {
+                        document.getElementById('request' + i).style.display = 'none';
+                        let res = await this.fetch('/friendRequest/', 'DELETE', {
+                            myID: response.message[i].ToID,
+                            friendID: response.message[i].FromID
+                        });
+                        if (res.error) {
+                            console.log(res.error_message);
+                        }
+                        // this.displayFriendRequest();
+
+                    };
+                }
+            }
+        };
+
+        this.getFriendList = async () => {
+
+            let response = await this.fetch('/friend/' + this.id + '/', 'GET');
+
+            if (response.error) {
+                console.error(response.error_message);
+            } else {
+
+                if (response.message.length === 0) {
+                    this.friends = [];
+                    document.getElementById('friendList').innerHTML = '<div id="noFriend">No Friends yet</div>';
+                } else if (this.friends.length === 0) { // initialize for the first time
+                    this.friends = response.message;
+                    let html = '';
+                    for (let i = 0; i < response.message.length; i++) {
+                        html += '<div class="friend" id="' + response.message[i].friendID + '">' + response.message[i].name + '</div>'
+                    }
+                    document.getElementById('friendList').innerHTML = html;
+                    for (let i = 0; i < response.message.length; i++) {
+                        document.getElementById(response.message[i].friendID).onclick = () => {
+                            this.friendClickListener(response.message[i].friendID);
+                        }
+                    }
+
+                } else if (response.message.length > user.friends.length) { // new friend added
+                    this.friends = response.message;
+                    let html = '<div class="friend" id="' + response.message[response.message.length - 1].friendID + '">' + response.message[response.message.length - 1].name + '</div>';
+                    document.getElementById('friendList').innerHTML += html;
+                    document.getElementById(response.message[response.message.length - 1].friendID).onclick = () => {
+                        this.friendClickListener(response.message[response.message.length - 1].friendID);
+                    }
+                }
+            }
+        };
+
+        this.getMessageHistory = async () => {
+
+            let response = await this.fetch('/message/' + this.id + '/', 'GET');
+            if (response.error) {
+                console.error(response.error_message)
+            } else {
+                this.message = response.message;
+            }
+        };
+
+        this.initializeSearchField = () => {
+            document.getElementById('searchFriendForm').onsubmit = async (e) => {
+                e.preventDefault();
+
+                let friendName = document.getElementById('search').value;
+
+                let response = await this.fetch('/users/userID/'+friendName+'/', 'GET');
+
+                let resultDisplay = document.getElementById('result');
+
+                if (response.error) {
+                    resultDisplay.innerHTML = '<span>User does not Exist!</span>';
+                    // console.error(response.error_message);
+
+                } else {
+                    if (this.id !== response.message) {
+                        resultDisplay.innerHTML = '<span>' + friendName + '</span>' + '<span style="cursor: pointer;margin-right: 3.5em" id="addButton">Add</span>';
+                        let addButton = document.getElementById('addButton');
+                        addButton.onclick = async () => {
+                            addButton.onclick = null;
+                            let message = new Message(response.message, this.id, 'request');
+                            let result = await this.fetch('/friendRequest/', 'POST', message.json);
+
+                            if (result.error) {
+                                addButton.innerText = result.error_message;
+                            } else {
+                                addButton.style.color = 'red';
+                                addButton.innerText = ' Pending';
+                            }
+                        };
+                    } else {
+                        resultDisplay.innerText = 'No Such User'
+                    }
+                }
+            };
+        };
     }
 
 
-    //
-    // let selectedFriendID = null;
-    //
-    // let user = {
-    //     id: null,
-    //     username: null,
-    //     friends: [],
-    //     message: [],
-    // }
-    //
-    // let dragDiv = document.getElementById('drag');
-    // let msgDiv = document.getElementById('sendMessage');
-    //
-    // function dragFunc(event){
-    //     console.log(event.y,dragDiv.style.top);
-    //     msgDiv.style.height= window.innerHeight-event.y+'px';
-    // }
-    // function addMoveListener(){
-    //     window.addEventListener("mousemove",dragFunc);
-    // }
-    // function removeMoveListener(){
-    //     window.removeEventListener("mousemove",dragFunc);
-    // }
-    //
-    //
-    // dragDiv.addEventListener('mousedown',addMoveListener);
-    // window.addEventListener('mouseup',removeMoveListener);
-    //
-    //
-    // let logout = () => {
-    //     document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    //     window.location = domain + '/users/login/';
-    // };
-    //
-    // let displayFriendRequest = () => {
-    //     document.getElementById('requestContainer').classList.toggle('noDisplay');
-    // };
-    //
-    //
-    // let focusEventListener = () => {
-    //     document.getElementsByName('search')[0].placeholder = '';
-    //     document.getElementById('friendContent').classList.add('hide');
-    //     document.getElementById('cancel').classList.remove('hide');
-    //     document.getElementById('result').classList.remove('hide');
-    //
-    // };
-    //
-    // let cancelOnClickListener = () => {
-    //     document.getElementById('search').value = '';
-    //     document.getElementsByName('search')[0].placeholder = 'Search for a friend...';
-    //     document.getElementById('friendContent').classList.remove('hide');
-    //     document.getElementById('cancel').classList.add('hide');
-    //     document.getElementById('result').classList.add('hide');
-    // };
-    //
-    // let friendClickListener = (id) => {
-    //
-    //     if (selectedFriendID == null) {
-    //
-    //         document.getElementById(id).style.backgroundColor = '#bbb';
-    //         selectedFriendID = id;
-    //         document.getElementById('friendName').innerText = document.getElementById(id).innerText;
-    //         let textarea = document.getElementById('messageArea');
-    //         textarea.focus();
-    //         document.getElementById('messageContent').classList.remove('hide');
-    //
-    //     } else if (id !== selectedFriendID) {
-    //
-    //         document.getElementById(selectedFriendID).style.backgroundColor = '';
-    //         document.getElementById(id).style.backgroundColor = '#bbb';
-    //         selectedFriendID = id;
-    //         document.getElementById('friendName').innerText = document.getElementById(id).innerText;
-    //         let textarea = document.getElementById('messageArea');
-    //         textarea.focus();
-    //         document.getElementById('messageContent').classList.remove('hide');
-    //     }
-    //
-    //
-    //     let parent = document.getElementById('history');
-    //     parent.innerHTML = '';
-    //
-    //     for (let i = 0; i < user.message.length; i++) {
-    //         if (user.message[i].ToID === user.id && user.message[i].FromID === selectedFriendID) {
-    //             let div = document.createElement('div');
-    //             div.innerText = user.message[i].Body;
-    //             div.classList.add('friendToMeMessage', 'message');
-    //             parent.appendChild(div);
-    //         } else if (user.message[i].ToID === selectedFriendID && user.message[i].FromID === user.id) {
-    //             let div = document.createElement('div');
-    //             div.innerText = user.message[i].Body;
-    //             div.classList.add('meToFriendMessage', 'message');
-    //             parent.appendChild(div);
-    //         }
-    //     }
-    //     // parent.scrollTo(0,parent.scrollHeight);
-    //
-    // };
-    //
-    // let sendListener = async () => {
-    //     let contentBody = document.getElementById('messageArea').value;
-    //     let request = Message(selectedFriendID, user.id, 'message', contentBody);
-    //     let response = await fetch(domain + '/sendMessage/', {
-    //         method: 'POST',
-    //         headers: {
-    //             'Content-Type': 'application/json;charset=utf-8'
-    //         },
-    //         body: JSON.stringify(request)
-    //     });
-    //
-    //     let msg = await response.json();
-    //     // console.log(msg);
-    //
-    //     document.getElementById('messageArea').value = '';
-    // };
-    //
-    //
-    // function Message(to, from, type, body = null) {
-    //     return {
-    //         to: to,
-    //         from: from,
-    //         type: type,
-    //         body: body,
-    //     }
-    // }
-    //
-    // let getUsername = async () => {
-    //     let cookies = document.cookie;
-    //     let token;
-    //     cookies = cookies.split('=');
-    //     for (let i = 0; i < cookies.length; i++) {
-    //         if (cookies[i] === 'token') {
-    //             token = cookies[i + 1];
-    //             break;
-    //         }
-    //     }
-    //
-    //     let response = await fetch(domain + '/cookieInfoAPI/', {
-    //         method: 'POST',
-    //
-    //     });
-    //     let result = await response.json();
-    //     user.username = result.user.username;
-    //     user.id = result.user.id;
-    //     document.getElementById('name').innerText = 'Hello, ' + user.username;
-    //     document.getElementById('userID').innerText = user.id + '';
-    // }
-    //
-    //
-    // let getFriendRequest = async () => {
-    //
-    //     let response = await fetch(domain + '/getFriendRequest/', {
-    //         method: 'POST',
-    //         headers: {
-    //             'Content-Type': 'application/json;charset=utf-8'
-    //         },
-    //         body: JSON.stringify({myID: user.id})
-    //     });
-    //     let result = await response.json();
-    //
-    //     let icon = document.getElementById('requestNotitification');
-    //     if (result.error) {
-    //         // console.log('friend requests',result.error);
-    //         icon.style.color = '';
-    //         document.getElementById('requests').innerText = 'No friend requests yet.'
-    //     } else {
-    //
-    //         icon.style.color = '#ff5e00';
-    //         icon.classList.toggle('animate__tada');
-    //         icon.classList.toggle('animate__animated');
-    //
-    //
-    //         let temp = [];
-    //         let innerHtml = '';
-    //         for (let i = 0; i < result.length; i++) {
-    //             if (temp.includes(result[i].FromID)) {
-    //                 continue
-    //             }
-    //             innerHtml += '<div class="request" id="request' + i + '">' + '<div>Friend request from ' + result[i].name + '</div><div>' + ' <i class="fa fa-check accept" id="accept' + i + '"aria-hidden="true"></i>&emsp;<i class="fa fa-times reject" id="reject' + i + '"aria-hidden="true"></i></div></div>'
-    //             temp.push(result[i].FromID);
-    //         }
-    //         document.getElementById('requests').innerHTML = innerHtml;
-    //
-    //         for (let i = 0; i < result.length; i++) {
-    //             if (document.getElementById('accept' + i) === null) {
-    //                 continue
-    //             }
-    //             document.getElementById('accept' + i).onclick = async () => {
-    //                 document.getElementById('request' + i).style.display = 'none';
-    //                 fetch(domain + '/acceptFriendRequest/', {
-    //                     method: 'POST',
-    //                     headers: {
-    //                         'Content-Type': 'application/json;charset=utf-8'
-    //                     },
-    //                     body: JSON.stringify({myID: result[i].ToID, friendID: result[i].FromID})
-    //                 });
-    //                 displayFriendRequest();
-    //
-    //
-    //             };
-    //             document.getElementById('reject' + i).onclick = async () => {
-    //                 document.getElementById('request' + i).style.display = 'none';
-    //                 fetch(domain + '/rejectFriendRequest/', {
-    //                     method: 'POST',
-    //                     headers: {
-    //                         'Content-Type': 'application/json;charset=utf-8'
-    //                     },
-    //                     body: JSON.stringify({ToID: result[i].ToID, FromID: result[i].FromID})
-    //                 });
-    //                 displayFriendRequest();
-    //
-    //             };
-    //         }
-    //     }
-    // };
-    //
-    // let getFriendList = async () => {
-    //
-    //     let response = await fetch(domain + '/getFriendList/', {
-    //         method: 'POST',
-    //         headers: {
-    //             'Content-Type': 'application/json;charset=utf-8'
-    //         },
-    //         body: JSON.stringify({myID: user.id})
-    //     });
-    //
-    //     let result = await response.json();
-    //
-    //     if (result && user.friends.length === 0) {
-    //         user.friends = result;
-    //         let html = '';
-    //         for (let i = 0; i < result.length; i++) {
-    //             html += '<div class="friend" id="' + result[i].friendID + '">' + result[i].name + '</div>'
-    //         }
-    //         document.getElementById('friendList').innerHTML = html;
-    //         for (let i = 0; i < result.length; i++) {
-    //             document.getElementById(result[i].friendID).onclick = () => {
-    //                 friendClickListener(result[i].friendID);
-    //             }
-    //         }
-    //
-    //     } else if (result.length > user.friends.length) {
-    //         user.friends = result;
-    //         let html = '<div class="friend" id="' + result[result.length - 1].friendID + '">' + result[result.length - 1].name + '</div>';
-    //         document.getElementById('friendList').innerHTML += html;
-    //         document.getElementById(result[result.length - 1].friendID).onclick = () => {
-    //             friendClickListener(result[result.length - 1].friendID);
-    //         }
-    //
-    //     }
-    //     if (result.length === 0) {
-    //         user.friends = [];
-    //         document.getElementById('friendList').innerHTML = '<div id="noFriend">No Friends yet</div>';
-    //     }
-    //
-    //
-    // };
-    //
-    // let getMessageHistory = async () => {
-    //     let response = await fetch(domain + '/getMessageHistory/', {
-    //         method: 'POST',
-    //         headers: {
-    //             'Content-Type': 'application/json;charset=utf-8'
-    //         },
-    //         body: JSON.stringify({myID: user.id})
-    //     });
-    //
-    //     user.message = await response.json();
-    //
-    //     if (selectedFriendID) {
-    //         friendClickListener(selectedFriendID);
-    //     }
-    // };
-    //
-    //
-    // let setup = async () => {
-    //     await getUsername();
-    //     await getFriendRequest();
-    //     await getFriendList();
-    //     await getMessageHistory();
-    //
-    // };
-    //
-    //
-    // let slowLoop = async () => {
-    //
-    //     await getFriendRequest();
-    //     await getFriendList();
-    // };
-    //
-    // let fastLoop = async () => {
-    //     await getMessageHistory();
-    // };
-    //
-    //
-    // let searchFriend = document.getElementById('searchFriendForm');
-    // searchFriend.onsubmit = async (e) => {
-    //     e.preventDefault();
-    //
-    //     let friend = {
-    //         username: document.getElementById('search').value,
-    //     };
-    //
-    //     let response = await fetch(domain + '/users/getUserID/', {
-    //         method: 'POST',
-    //         headers: {
-    //             'Content-Type': 'application/json;charset=utf-8'
-    //         },
-    //         body: JSON.stringify(friend)
-    //     });
-    //
-    //     let result = await response.json();
-    //     console.log(result);
-    //     let resultDisplay = document.getElementById('result');
-    //
-    //     if (result.userID && user.id !== result.userID) {
-    //         resultDisplay.innerHTML = '<span>' + friend.username + '</span>' + '<span style="cursor: pointer;margin-right: 3.5em" id="addButton">Add</span>';
-    //         let addButton = document.getElementById('addButton');
-    //         addButton.onclick = async () => {
-    //             addButton.onclick = null;
-    //             let request = Message(result.userID, user.id, 'request');
-    //             let response = await fetch(domain + '/sendFriendRequest/', {
-    //                 method: 'POST',
-    //                 headers: {
-    //                     'Content-Type': 'application/json;charset=utf-8'
-    //                 },
-    //                 body: JSON.stringify(request)
-    //             });
-    //             let msg = await response.json();
-    //             if (msg.message) {
-    //                 addButton.innerText = msg.message;
-    //             } else {
-    //                 addButton.style.color = 'red';
-    //                 addButton.innerText = ' Pending';
-    //             }
-    //         };
-    //     } else {
-    //         resultDisplay.innerText = 'No Such User'
-    //     }
-    // };
-    //
-    //
-    // setup();
-    // setInterval(fastLoop, 500);
-    // setInterval(slowLoop, 2000);
+    async function main() {
+
+        window.user = new User();
+
+        user.initializeSearchField();
+        user.enableDragTextarea();
+        await user.getUsername();
+
+        await user.getFriendRequest();
+        await user.getFriendList();
+        await user.getMessageHistory();
+
+    }
+
+    let slowLoop = async () => {
+
+        await user.getFriendRequest();
+        await user.getFriendList();
+    };
+
+    let fastLoop = async () => {
+        await user.getMessageHistory();
+        user.updateView();
+    };
+
+    main();
+    setInterval(fastLoop, 500);
+    setInterval(slowLoop, 2000);
 
 
 </script>

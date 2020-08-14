@@ -103,11 +103,10 @@ function UserDataBase() {
 }
 
 
-router.get('/userID/', async (req, res, next) => {
+router.get('/userID/:friendName/', async (req, res, next) => {
     let db = new UserDataBase();
-    let username = req.body.username;
 
-    let msg = await db.getUserID(username);
+    let msg = await db.getUserID(req.params.friendName);
 
     if (msg.error) {
         res.json(message(true,'error getting userID'));
