@@ -7,7 +7,7 @@ let db = require('../db');
 let ROOT = path.dirname(__dirname);
 
 
-let message = (error = false, error_message = 'no error',
+let message_return_to_frontend = (error = false, error_message = 'no error',
                redirect = false, message = '') => {
     return {
         'error': error,
@@ -259,9 +259,9 @@ router.get('/friend/:usrID/', processToken, async (req, res) => {
     let db = new MessageDB();
     let msg = await db.getFriendList(req.params.usrID);
     if (msg.error) {
-        res.send(message(true, 'get friend error'))
+        res.send(message_return_to_frontend(true, 'get friend error'))
     } else {
-        res.send(message(false, 'no error', false, msg.message));
+        res.send(message_return_to_frontend(false, 'no error', false, msg.message));
     }
 });
 
@@ -271,7 +271,7 @@ router.get('/friendRequest/:usrID/', processToken, async (req, res) => {
     let db = new MessageDB();
     let msg = await db.getFriendRequest(req.params.usrID);
     if (msg.error) {
-        res.send(message(true, 'No incoming friend requests'))
+        res.send(message_return_to_frontend(true, 'No incoming friend requests'))
     } else {
         for (let i = 0; i < msg.message.length; i++) {
             // msg.message[i].name = await db.getUsername(msg.message[i].FromID);
@@ -282,7 +282,7 @@ router.get('/friendRequest/:usrID/', processToken, async (req, res) => {
                 msg.message[i].name = response.message;
             }
         }
-        res.send(message(false, 'no error', false, msg.message));
+        res.send(message_return_to_frontend(false, 'no error', false, msg.message));
     }
 });
 
@@ -291,9 +291,9 @@ router.post('/friendRequest/', processToken, async (req, res) => {
     let db = new MessageDB();
     let msg = await db.sendFriendRequest(req.body);
     if (msg.error) {
-        res.send(message(true, 'Already Friends'))
+        res.send(message_return_to_frontend(true, 'Already Friends'))
     } else {
-        res.send(message(false));
+        res.send(message_return_to_frontend(false));
     }
 });
 
@@ -302,9 +302,9 @@ router.delete('/friendRequest/', processToken, async (req, res) => {
     let db = new MessageDB();
     let msg = await db.deleteMessage(req.body.myID, req.body.friendID);
     if (msg.error) {
-        res.send(message(true, 'delete friend request error'))
+        res.send(message_return_to_frontend(true, 'delete friend request error'))
     } else {
-        res.send(message(false));
+        res.send(message_return_to_frontend(false));
     }
 
 });
@@ -314,13 +314,13 @@ router.post('/friendRequest/accept/', processToken, async (req, res) => {
     let db = new MessageDB();
     let msg = await db.createFriendRequest(req.body.myID, req.body.friendID);
     if (msg.error) {
-        res.send(message(true, 'create friend request error'))
+        res.send(message_return_to_frontend(true, 'create friend request error'))
     } else {
         msg = await db.deleteMessage(req.body.myID, req.body.friendID);
         if (msg.error) {
-            res.send(message(true, 'delete friend request error'))
+            res.send(message_return_to_frontend(true, 'delete friend request error'))
         } else {
-            res.send(message(false));
+            res.send(message_return_to_frontend(false));
         }
     }
 
@@ -331,9 +331,9 @@ router.post('/message/', processToken, async (req, res) => {
     let db = new MessageDB();
     let msg = await db.sendMessage(req.body);
     if (msg.error) {
-        res.send(message(true, 'error sending messages'))
+        res.send(message_return_to_frontend(true, 'error sending messages'))
     } else {
-        res.send(message(false));
+        res.send(message_return_to_frontend(false));
     }
 });
 
@@ -343,16 +343,16 @@ router.get('/message/:usrID/', processToken, async (req, res) => {
     let db = new MessageDB();
     let msg = await db.getMessageHistory(req.params.usrID);
     if (msg.error) {
-        res.send(message(true, 'error getting message history'))
+        res.send(message_return_to_frontend(true, 'error getting message history'))
     } else {
-        res.send(message(false, 'no error', false, msg.message));
+        res.send(message_return_to_frontend(false, 'no error', false, msg.message));
     }
 
 });
 
 
 router.get('/cookieInfo/', processToken, function (req, res, next) {
-    res.send(message(false, 'no error', false, req.authData));
+    res.send(message_return_to_frontend(false, 'no error', false, req.authData));
 });
 
 

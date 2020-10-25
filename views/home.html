@@ -77,6 +77,8 @@
 
 <script>
     const DOMAIN = 'http://127.0.0.1:8000';
+    let messageArea = document.getElementById('messageArea');
+
 
     function User() {
         this.id = null;
@@ -84,6 +86,7 @@
         this.friends = [];
         this.message = [];
         this.selectedFriendID = null
+        this.chatMessage = '';
 
         this.logout = () => {
             document.cookie = "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
@@ -130,7 +133,7 @@
             document.getElementById('result').classList.add('noDisplay');
         };
 
-        this.updateChat = ()=>{
+        this.updateChat = () => {
 
             let parent = document.getElementById('history');
             parent.innerHTML = '';
@@ -152,33 +155,31 @@
 
         };
 
-        this.updateView = ()=>{
-          if (this.selectedFriendID){
-              this.updateChat();
-          }
+        this.updateView = () => {
+            if (this.selectedFriendID) {
+                this.updateChat();
+            }
         };
 
 
         this.friendClickListener = (id) => { // update history
             // console.log(id,this.selectedFriendID);
             if (this.selectedFriendID && id !== this.selectedFriendID) {
-
                 document.getElementById(this.selectedFriendID).style.backgroundColor = '';
             }
 
             document.getElementById(id).style.backgroundColor = '#bbb';
             this.selectedFriendID = id;
             document.getElementById('friendName').innerText = document.getElementById(id).innerText;
-            let textarea = document.getElementById('messageArea');
-            textarea.focus();
+            messageArea.focus();
             document.getElementById('messageContent').classList.remove('hide');
 
             this.updateChat();
-            this.chatScrollDown();
+            // this.chatScrollDown();
 
         };
 
-        this.chatScrollDown = () =>{
+        this.chatScrollDown = () => {
             let parent = document.getElementById('history');
             parent.scrollTo(0, parent.scrollHeight);
         }
@@ -245,16 +246,27 @@
 
 
         this.sendListener = async () => {
-            let contentBody = document.getElementById('messageArea').value;
+            let contentBody = this.chatMessage;
+            console.log(contentBody);
+
             let message = new Message(this.selectedFriendID, this.id, 'message', contentBody);
             let response = await this.fetch('/message/', 'POST', message.json);
 
             if (response.error) {
-                document.getElementById('messageArea').placeholder = 'Send Failed';
+                messageArea.placeholder = 'Send Failed';
             } else {
-                document.getElementById('messageArea').value = '';
+                this.chatMessage = '';
+                messageArea.value = '';
+                messageArea.placeholder = '';
+
             }
         };
+
+        this.scrollDown = () =>{
+            let history = document.getElementById('history');
+            history.scrollTop = history.scrollHeight;
+
+        }
 
 
         this.getUsername = async () => {
@@ -393,7 +405,7 @@
 
                 let friendName = document.getElementById('search').value;
 
-                let response = await this.fetch('/users/userID/'+friendName+'/', 'GET');
+                let response = await this.fetch('/users/userID/' + friendName + '/', 'GET');
 
                 let resultDisplay = document.getElementById('result');
 
@@ -424,6 +436,38 @@
             };
         };
     }
+
+    document.addEventListener('keyup', (e) => {
+
+
+        if (messageArea === document.activeElement && !(e.code === "Enter" || e.key === 'Enter' || e.which === 13)) {
+                messageArea.placeholder = '';
+                user.chatMessage = messageArea.value;
+        }
+    });
+
+
+    document.addEventListener('keydown',(e)=>{
+        if (messageArea === document.activeElement){
+            if (e.shiftKey && e.code === "Enter"){
+                    // new line in the text area
+            }
+            else if( e.code === "Enter" || e.key === 'Enter' || e.which === 13 && messageArea === document.activeElement) {
+                e.preventDefault();
+                console.log(user.chatMessage, user.chatMessage.length);
+
+                user.chatMessage = user.chatMessage.trim();
+                if (user.chatMessage.length === 0) {
+                    messageArea.placeholder = 'Empty Body'
+                    user.chatMessage='';
+                    messageArea.value='';
+                } else {
+                    user.sendListener();
+                }
+            }
+        }
+
+    });
 
 
     async function main() {
