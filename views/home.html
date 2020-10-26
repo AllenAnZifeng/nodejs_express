@@ -137,7 +137,7 @@
 
             let parent = document.getElementById('history');
             parent.innerHTML = '';
-
+            // console.log(this.message);
             for (let i = 0; i < this.message.length; i++) {
                 if (this.message[i].ToID === this.id && this.message[i].FromID === this.selectedFriendID) {
                     let div = document.createElement('div');
@@ -158,6 +158,7 @@
         this.updateView = () => {
             if (this.selectedFriendID) {
                 this.updateChat();
+                this.chatScrollDown();
             }
         };
 
@@ -167,7 +168,7 @@
             if (this.selectedFriendID && id !== this.selectedFriendID) {
                 document.getElementById(this.selectedFriendID).style.backgroundColor = '';
             }
-
+            document.getElementById(id).style.color = 'black';
             document.getElementById(id).style.backgroundColor = '#bbb';
             this.selectedFriendID = id;
             document.getElementById('friendName').innerText = document.getElementById(id).innerText;
@@ -175,7 +176,7 @@
             document.getElementById('messageContent').classList.remove('hide');
 
             this.updateChat();
-            // this.chatScrollDown();
+            this.chatScrollDown();
 
         };
 
@@ -247,26 +248,28 @@
 
         this.sendListener = async () => {
             let contentBody = this.chatMessage;
-            console.log(contentBody);
+            // console.log(contentBody);
 
             let message = new Message(this.selectedFriendID, this.id, 'message', contentBody);
             let response = await this.fetch('/message/', 'POST', message.json);
 
             if (response.error) {
-                messageArea.placeholder = 'Send Failed';
+                alert('Send Failed');
+                console.error(response);
             } else {
+                this.message.push({
+                    Body: contentBody,
+                    FromID: this.id,
+                    ToID: this.selectedFriendID
+                });  // update message on front end
                 this.chatMessage = '';
                 messageArea.value = '';
                 messageArea.placeholder = '';
-
+                this.updateView();
             }
         };
 
-        this.scrollDown = () =>{
-            let history = document.getElementById('history');
-            history.scrollTop = history.scrollHeight;
 
-        }
 
 
         this.getUsername = async () => {
@@ -389,15 +392,48 @@
             }
         };
 
-        this.getMessageHistory = async () => {
+        this.getOldMessage = async () => { // old messages --> messages have been read
 
-            let response = await this.fetch('/message/' + this.id + '/', 'GET');
+            let response = await this.fetch('/message/old/' + this.id + '/', 'GET');
             if (response.error) {
                 console.error(response.error_message)
             } else {
                 this.message = response.message;
             }
         };
+
+        this.getNewMessage = async () => { // old messages --> messages have been read
+
+            let response = await this.fetch('/message/new/' + this.id + '/', 'GET');
+            if (response.error) {
+                console.error(response.error_message);
+            } else {
+                console.log(response);
+                this.notification(response.message)
+                this.message.push(...response.message);
+                user.updateView();
+            }
+        };
+
+        this.notification = (message) =>{
+            let notify_user_id = [];
+            for (let i = 0; i < message.length; i++) {
+                if (!notify_user_id.includes(message[i].FromID)){
+                    notify_user_id.push(message[i].FromID)
+                }
+            }
+            for (let i = 0; i <notify_user_id.length ; i++) {
+                document.getElementById(notify_user_id[i]).style.color = '#fca144';
+                if (notify_user_id[i]===this.selectedFriendID){
+                    setTimeout(()=>{
+                        document.getElementById(notify_user_id[i]).style.color = 'black';
+                    },500)
+
+                }
+
+            }
+
+        }
 
         this.initializeSearchField = () => {
             document.getElementById('searchFriendForm').onsubmit = async (e) => {
@@ -454,7 +490,7 @@
             }
             else if( e.code === "Enter" || e.key === 'Enter' || e.which === 13 && messageArea === document.activeElement) {
                 e.preventDefault();
-                console.log(user.chatMessage, user.chatMessage.length);
+                // console.log(user.chatMessage, user.chatMessage.length);
 
                 user.chatMessage = user.chatMessage.trim();
                 if (user.chatMessage.length === 0) {
@@ -480,7 +516,7 @@
 
         await user.getFriendRequest();
         await user.getFriendList();
-        await user.getMessageHistory();
+        await user.getOldMessage();
 
     }
 
@@ -491,8 +527,8 @@
     };
 
     let fastLoop = async () => {
-        await user.getMessageHistory();
-        user.updateView();
+        await user.getNewMessage();
+
     };
 
     main();

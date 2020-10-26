@@ -111,7 +111,7 @@ function MessageDB() {
 
 
         await new Promise((resolve => {
-            db.run('CREATE TABLE IF NOT EXISTS messageCenter(ToID INTEGER NOT NULL,FromID INTEGER NOT NULL, Type Text NOT NULL,Body TEXT, Time TEXT)', resolve);
+            db.run('CREATE TABLE IF NOT EXISTS messageCenter(ToID INTEGER NOT NULL,FromID INTEGER NOT NULL, Type Text NOT NULL,Body TEXT, Time TEXT, Read BOOLEAN)', resolve);
         }));
 
         return await new Promise(((resolve, reject) => {
@@ -126,7 +126,7 @@ function MessageDB() {
         })).then(
             async () => {
                 return await new Promise(((resolve, reject) => {
-                    db.run('INSERT INTO messageCenter (ToID, FromID,Type,Body,Time) VALUES (?,?,?,?,?)', [msg.to, msg.from, msg.type, msg.body, new Date()], (err, row) => {
+                    db.run('INSERT INTO messageCenter (ToID, FromID,Type,Body,Time, Read) VALUES (?,?,?,?,?,?)', [msg.to, msg.from, msg.type, msg.body, new Date(), false], (err, row) => {
                         if (err) {
                             reject(new Error('insert friend error'));
                         } else {
@@ -144,10 +144,15 @@ function MessageDB() {
     };
 
     this.sendMessage = async (msg) => {
+
+        await new Promise((resolve => {
+            db.run('CREATE TABLE IF NOT EXISTS messageCenter(ToID INTEGER NOT NULL,FromID INTEGER NOT NULL, Type Text NOT NULL,Body TEXT, Time TEXT, Read BOOLEAN)', resolve);
+        }));
+
         return await new Promise(((resolve, reject) => {
-            db.run('INSERT INTO messageCenter (ToID, FromID,Type,Body,Time) VALUES (?,?,?,?,?)', [msg.to, msg.from, msg.type, msg.body, new Date()], (err, row) => {
+            db.run('INSERT INTO messageCenter (ToID, FromID,Type,Body,Time, Read) VALUES (?,?,?,?,?,?)', [msg.to, msg.from, msg.type, msg.body, new Date(),false], (err, row) => {
                 if (err) {
-                    reject(new Error('insert message error'));
+                    reject(new Error('insert message error'+err));
                 } else {
                     resolve(resolveMessage(false));
                 }
@@ -172,21 +177,20 @@ function MessageDB() {
             });
         })).catch(
             error => {
-                console.error(error);
+                // console.error(error);
                 return {'error': error};
             }
         );
     };
 
-    this.getMessageHistory = async (myID) => {
-        return await new Promise(((resolve, reject) => {
-            db.all('SELECT * FROM messageCenter Where ToID = ? OR FromID = ? AND Type = ?', [myID, myID, 'message'], (err, row) => {
+    this.getOldMessage = async (myID) => {
+        return await new Promise(((resolve, reject) => { // old messages: sent to you and already read, or sent by you
+            db.all('SELECT * FROM messageCenter Where Type = ? AND ToID = ? AND Read = ? OR FromID = ?', [ 'message',myID, true,myID], (err, row) => {
                 if (row && row.length > 0) {
                     resolve(resolveMessage(false, row));
                 } else {
-                    reject(new Error('no message'))
+                    reject(new Error('no old message'))
                 }
-
             });
         })).catch(
             error => {
@@ -194,7 +198,34 @@ function MessageDB() {
                 return {'error': error};
             }
         );
+    };
 
+
+    this.getNewMessage = async (myID) => {
+        return await new Promise(((resolve, reject) => {
+            db.all('SELECT * FROM messageCenter Where ToID = ? AND Type = ? AND Read = ?', [ myID, 'message',false], (err, row) => {
+                console.log(row,myID);
+                if (row && row.length > 0) {
+
+                    db.all('UPDATE messageCenter SET Read = true WHERE ToID = ? AND Type = ? AND Read = ?', [myID, 'message',false], (err, row) => {
+                        if (err) {
+                            console.error(err);
+                            reject(new Error(err));
+                        }else{
+                            resolve(resolveMessage(false, row));
+                        }
+                    })
+
+                } else {
+                    reject(new Error('no new message'));
+                }
+            });
+        })).catch(
+            error => {
+                // console.error(error);
+                return {'error': error};
+            }
+        );
 
     };
 
@@ -338,16 +369,27 @@ router.post('/message/', processToken, async (req, res) => {
 });
 
 
-router.get('/message/:usrID/', processToken, async (req, res) => {
+router.get('/message/old/:usrID/', processToken, async (req, res) => {
 
     let db = new MessageDB();
-    let msg = await db.getMessageHistory(req.params.usrID);
+    let msg = await db.getOldMessage(req.params.usrID);
     if (msg.error) {
-        res.send(message_return_to_frontend(true, 'error getting message history'))
+        res.send(message_return_to_frontend(true, 'error getting old message history'))
     } else {
         res.send(message_return_to_frontend(false, 'no error', false, msg.message));
     }
+});
 
+
+router.get('/message/new/:usrID/', processToken, async (req, res) => {
+
+    let db = new MessageDB();
+    let msg = await db.getNewMessage(req.params.usrID);
+    if (msg.error) {
+        res.send(message_return_to_frontend(true, 'error getting new message history'))
+    } else {
+        res.send(message_return_to_frontend(false, 'no error', false, msg.message));
+    }
 });
 
 
