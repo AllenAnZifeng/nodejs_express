@@ -11,7 +11,7 @@
             rel="stylesheet"
             href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.0.0/animate.min.css"
     />
-
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
     <script src="https://kit.fontawesome.com/6670bd51cb.js" crossorigin="anonymous"></script>
 </head>
 
@@ -28,7 +28,7 @@
                 <label for="search"></label>
                 <input type="text" placeholder="Search for a friend..." name='search' id="search"
                        onfocus="user.focusEventListener()">
-                <button type="submit"><i class="fa fa-search"></i></button>
+                <button type="submit" style="border-radius: revert"><i class="fa fa-search"></i></button>
             </form>
         </div>
 
@@ -63,6 +63,12 @@
 
             <div id="sendMessage">
                 <div id="drag"></div>
+                <div id="toolBar">
+                    <div id="file" data-toggle="modal" data-target="#fileModal"><i class="fas fa-folder"></i></div>
+                    <div id="group_chat" data-toggle="modal" data-target="#groupChatModal"><i class="fas fa-users"></i></div>
+
+
+                </div>
                 <label for="messageArea"></label>
                 <textarea id="messageArea" name="messageArea" required></textarea>
                 <div id="sendButton" onclick="user.sendListener()">Send</div>
@@ -73,12 +79,54 @@
 
 
 </div>
+
+<!-- file Modal -->
+<div class="modal fade" id="fileModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="fileModalLabel">Send File</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="file" name="uploaded_file" id="uploadFile">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="user.sendFile()">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GroupChat Modal -->
+<div class="modal fade" id="groupChatModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="groupChatModalLabel">Group Messages</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+               ...
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="">Submit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 </body>
 
 <script>
     const DOMAIN = 'http://127.0.0.1:8000';
     let messageArea = document.getElementById('messageArea');
-
 
     function User() {
         this.id = null;
@@ -137,23 +185,34 @@
 
             let parent = document.getElementById('history');
             parent.innerHTML = '';
-            // console.log(this.message);
+            console.log(this.message);
             for (let i = 0; i < this.message.length; i++) {
+                let div = document.createElement('div');
+
+
                 if (this.message[i].ToID === this.id && this.message[i].FromID === this.selectedFriendID) {
-                    let div = document.createElement('div');
-                    div.innerText = this.message[i].Body;
                     div.classList.add('friendToMeMessage', 'message');
-                    parent.appendChild(div);
                 } else if (this.message[i].ToID === this.selectedFriendID && this.message[i].FromID === this.id) {
-                    let div = document.createElement('div');
-                    div.innerText = this.message[i].Body;
                     div.classList.add('meToFriendMessage', 'message');
-                    parent.appendChild(div);
                 }
+                if (this.message[i].Type === 'file') {
+
+                    let span = ' <span><i class="fas fa-cloud-download-alt"></i></span>';
+                    div.innerHTML = '<div>' + this.message[i].Body.slice(32,) + span + '</div>'; // length of random address stored on server
+                    div.classList.add('download');
+                    div.addEventListener('click',()=>{
+                        this.downloadFile(this.message[i].Body);
+                    })
+                } else {
+                    div.innerText = this.message[i].Body;
+                }
+                parent.appendChild(div);
             }
 
 
         };
+
+
 
         this.updateView = () => {
             if (this.selectedFriendID) {
@@ -204,7 +263,13 @@
                 }, 3000);
 
                 let response;
-                if (method === 'GET') {
+                if (url === '/file/') {
+                    console.log('here');
+                    response = await fetch(DOMAIN + url, {
+                        method: method,
+                        body: body
+                    });
+                } else if (method === 'GET') {
                     response = await fetch(DOMAIN + url, {
                         method: 'GET',
                         headers: {
@@ -246,6 +311,36 @@
         }
 
 
+
+        this.downloadFile = async (address) => {
+            console.log(address);
+
+            window.open(DOMAIN+'/file/'+address);
+        }
+
+        this.sendFile = async () => {
+            let file = document.getElementById('uploadFile').files[0];
+            document.getElementById('uploadFile').value='';
+            let formData = new FormData();
+            formData.append('file', file);
+            let msg = new Message(this.selectedFriendID, this.id, 'file');
+            formData.append('message', JSON.stringify(msg.json));
+            // console.log(file);
+            // console.log(`File name: ${file.name}`);
+            // console.log(`Last modified: ${file.lastModified}`);
+            let response = await this.fetch('/file/', 'POST', formData)
+
+            if (response.error) {
+                console.log(response, 'error');
+            } else {
+                console.log('success');
+                await user.getOldMessage();
+                this.updateView();
+
+            }
+        }
+
+
         this.sendListener = async () => {
             let contentBody = this.chatMessage;
             // console.log(contentBody);
@@ -268,8 +363,6 @@
                 this.updateView();
             }
         };
-
-
 
 
         this.getUsername = async () => {
@@ -402,12 +495,13 @@
             }
         };
 
-        this.getNewMessage = async () => { // old messages --> messages have been read
+        this.getNewMessage = async () => { // new messages --> messages have not been read
 
             let response = await this.fetch('/message/new/' + this.id + '/', 'GET');
+            // console.log(response);
             if (response.error) {
-                console.error(response.error_message);
-            } else {
+                // console.error(response.error_message);
+            } else if (response.message.length !== 0) {
                 console.log(response);
                 this.notification(response.message)
                 this.message.push(...response.message);
@@ -415,24 +509,21 @@
             }
         };
 
-        this.notification = (message) =>{
+        this.notification = (message) => {
             let notify_user_id = [];
             for (let i = 0; i < message.length; i++) {
-                if (!notify_user_id.includes(message[i].FromID)){
+                if (!notify_user_id.includes(message[i].FromID)) {
                     notify_user_id.push(message[i].FromID)
                 }
             }
-            for (let i = 0; i <notify_user_id.length ; i++) {
+            for (let i = 0; i < notify_user_id.length; i++) {
                 document.getElementById(notify_user_id[i]).style.color = '#fca144';
-                if (notify_user_id[i]===this.selectedFriendID){
-                    setTimeout(()=>{
+                if (notify_user_id[i] === this.selectedFriendID) {
+                    setTimeout(() => {
                         document.getElementById(notify_user_id[i]).style.color = 'black';
-                    },500)
-
+                    }, 500)
                 }
-
             }
-
         }
 
         this.initializeSearchField = () => {
@@ -477,26 +568,25 @@
 
 
         if (messageArea === document.activeElement && !(e.code === "Enter" || e.key === 'Enter' || e.which === 13)) {
-                messageArea.placeholder = '';
-                user.chatMessage = messageArea.value;
+            messageArea.placeholder = '';
+            user.chatMessage = messageArea.value;
         }
     });
 
 
-    document.addEventListener('keydown',(e)=>{
-        if (messageArea === document.activeElement){
-            if (e.shiftKey && e.code === "Enter"){
-                    // new line in the text area
-            }
-            else if( e.code === "Enter" || e.key === 'Enter' || e.which === 13 && messageArea === document.activeElement) {
+    document.addEventListener('keydown', (e) => {
+        if (messageArea === document.activeElement) {
+            if (e.shiftKey && e.code === "Enter") {
+                // new line in the text area
+            } else if (e.code === "Enter" || e.key === 'Enter' || e.which === 13 && messageArea === document.activeElement) {
                 e.preventDefault();
                 // console.log(user.chatMessage, user.chatMessage.length);
 
                 user.chatMessage = user.chatMessage.trim();
                 if (user.chatMessage.length === 0) {
                     messageArea.placeholder = 'Empty Body'
-                    user.chatMessage='';
-                    messageArea.value='';
+                    user.chatMessage = '';
+                    messageArea.value = '';
                 } else {
                     user.sendListener();
                 }
@@ -537,4 +627,7 @@
 
 
 </script>
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ho+j7jyWK8fNQe+A12Hb8AhRq26LrZ/JpcUGGOn+Y7RsweNrtN/tE3MoK7ZeZDyx" crossorigin="anonymous"></script>
+
 </html>

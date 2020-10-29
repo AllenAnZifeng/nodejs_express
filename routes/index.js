@@ -3,6 +3,8 @@ let router = express.Router();
 let path = require('path');
 let jwt = require('jsonwebtoken');
 let db = require('../db');
+let multer  = require('multer')
+let upload = multer({ dest: './uploads/' })
 
 let ROOT = path.dirname(__dirname);
 
@@ -144,7 +146,7 @@ function MessageDB() {
     };
 
     this.sendMessage = async (msg) => {
-
+        console.log(msg);
         await new Promise((resolve => {
             db.run('CREATE TABLE IF NOT EXISTS messageCenter(ToID INTEGER NOT NULL,FromID INTEGER NOT NULL, Type Text NOT NULL,Body TEXT, Time TEXT, Read BOOLEAN)', resolve);
         }));
@@ -164,6 +166,7 @@ function MessageDB() {
             }
         );
     };
+
 
     this.getFriendRequest = async (myID) => {
 
@@ -185,7 +188,7 @@ function MessageDB() {
 
     this.getOldMessage = async (myID) => {
         return await new Promise(((resolve, reject) => { // old messages: sent to you and already read, or sent by you
-            db.all('SELECT * FROM messageCenter Where Type = ? AND ToID = ? AND Read = ? OR FromID = ?', [ 'message',myID, true,myID], (err, row) => {
+            db.all('SELECT * FROM messageCenter Where Type != ? AND ToID = ? AND Read = ? OR FromID = ?', ['request',myID, true,myID], (err, row) => {
                 if (row && row.length > 0) {
                     resolve(resolveMessage(false, row));
                 } else {
@@ -203,19 +206,20 @@ function MessageDB() {
 
     this.getNewMessage = async (myID) => {
         return await new Promise(((resolve, reject) => {
-            db.all('SELECT * FROM messageCenter Where ToID = ? AND Type = ? AND Read = ?', [ myID, 'message',false], (err, row) => {
-                console.log(row,myID);
+            db.all('SELECT * FROM messageCenter Where ToID = ? AND Type != ? AND Read = ?', [ myID,'request' ,false], (err, row) => {
+                // console.log(row,myID);
+                let new_message = row;
                 if (row && row.length > 0) {
 
-                    db.all('UPDATE messageCenter SET Read = true WHERE ToID = ? AND Type = ? AND Read = ?', [myID, 'message',false], (err, row) => {
+                    db.all('UPDATE messageCenter SET Read = true WHERE ToID = ? AND Type != ? AND Read = ?', [myID, 'request',false], (err, row) => {
                         if (err) {
                             console.error(err);
                             reject(new Error(err));
                         }else{
-                            resolve(resolveMessage(false, row));
+                            // console.log('data',new_message);
+                            resolve(resolveMessage(false, new_message));
                         }
                     })
-
                 } else {
                     reject(new Error('no new message'));
                 }
@@ -226,7 +230,6 @@ function MessageDB() {
                 return {'error': error};
             }
         );
-
     };
 
 
@@ -390,6 +393,55 @@ router.get('/message/new/:usrID/', processToken, async (req, res) => {
     } else {
         res.send(message_return_to_frontend(false, 'no error', false, msg.message));
     }
+});
+
+router.get('/file/:address/', processToken, async (req, res) => {
+
+    let file_address = req.params.address.slice(0,32);
+    let file_name = req.params.address.slice(32,);
+    res.download('./uploads/'+file_address,file_name,  (error)=>{
+        if (error){
+            console.error(error)
+        }
+        else{
+            console.log('success');
+        }
+    })
+
+});
+
+
+
+router.post('/file/', processToken, upload.single('file'), async (req, res) => {
+
+
+    // console.log(req.file);
+    let formData_msg = JSON.parse(req.body.message);
+    formData_msg.body = req.file.filename+req.file.originalname;
+    // console.log(formData_msg);
+    let db = new MessageDB();
+    let msg = await db.sendMessage(formData_msg);
+    if (msg.error) {
+        res.send(message_return_to_frontend(true, 'error sending file'))
+    } else {
+        res.send(message_return_to_frontend(false, 'no error', false, msg.message));
+    }
+
+
+    // req.file object
+    // {
+    //     fieldname: 'file',
+    //     originalname: 'Allen_Resume_Zh_bio.pdf',
+    //     encoding: '7bit',
+    //     mimetype: 'application/pdf',
+    //     destination: './uploads/',
+    //     filename: 'e09e15e6e8b6ebcf5ed3940a1af11b3f',   // length == 32
+    //     path: 'uploads\\e09e15e6e8b6ebcf5ed3940a1af11b3f',
+    //     size: 186976
+    // }
+
+    // message type file, filename + original name
+
 });
 
 

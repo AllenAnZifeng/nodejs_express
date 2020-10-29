@@ -267,3 +267,19 @@ i.fa-window-close {
 #drag:hover{
     cursor: n-resize;
 }
+
+#toolBar{
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+}
+
+#file,#group_chat{
+    padding: 3px 6px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.download{
+    cursor: pointer;
+}
