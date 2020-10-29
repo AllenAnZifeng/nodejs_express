@@ -189,23 +189,28 @@
             for (let i = 0; i < this.message.length; i++) {
                 let div = document.createElement('div');
 
-
+                let message_to_be_displayed = false;
                 if (this.message[i].ToID === this.id && this.message[i].FromID === this.selectedFriendID) {
                     div.classList.add('friendToMeMessage', 'message');
+                    message_to_be_displayed = true;
                 } else if (this.message[i].ToID === this.selectedFriendID && this.message[i].FromID === this.id) {
                     div.classList.add('meToFriendMessage', 'message');
+                    message_to_be_displayed = true;
                 }
-                if (this.message[i].Type === 'file') {
+                if (message_to_be_displayed){
+                    if (this.message[i].Type === 'file') {
 
-                    let span = ' <span><i class="fas fa-cloud-download-alt"></i></span>';
-                    div.innerHTML = '<div>' + this.message[i].Body.slice(32,) + span + '</div>'; // length of random address stored on server
-                    div.classList.add('download');
-                    div.addEventListener('click',()=>{
-                        this.downloadFile(this.message[i].Body);
-                    })
-                } else {
-                    div.innerText = this.message[i].Body;
+                        let span = ' <span><i class="fas fa-cloud-download-alt"></i></span>';
+                        div.innerHTML = '<div>' + this.message[i].Body.slice(32,) + span + '</div>'; // length of random address stored on server
+                        div.classList.add('download');
+                        div.addEventListener('click',()=>{
+                            this.downloadFile(this.message[i].Body);
+                        })
+                    } else {
+                        div.innerText = this.message[i].Body;
+                    }
                 }
+
                 parent.appendChild(div);
             }
 
